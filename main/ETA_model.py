@@ -19,6 +19,7 @@ import statsmodels
 
 ###Setting Functions
 from scipy.stats import levene
+from statsmodels.stats._lilliefors import lilliefors
 
 
 def descriptives(data):
@@ -92,7 +93,10 @@ print(descriptives(data['download_time']))
 print(descriptives(data['total_files']))
 y=data['download_time']
 x=data.drop(columns='download_time')
-x = stats.kstest(rvs=y, method="exact",cdf='norm')
-x=stats.shapiro(y)
-print(x)
+c,pval = lilliefors(y,'norm','approx')
+#x=stats.shapiro(y)
+if pval<0.05:
+    print(f'Null hypothesis that the data are normal is rejected p-value={round(pval,2)}')
+else:
+    print(f'There is no evidence for the rejection of the Null hypothesis p-value={round(pval,2)}')
 
