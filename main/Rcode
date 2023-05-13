@@ -1,0 +1,761 @@
+library(foreign)
+library(psych)
+library(ggplot2)
+library(plotrix)
+library(gmodels)
+library(car)
+library(DescTools)
+library(PerformanceAnalytics)
+library(regclass)
+library(olsrr)
+library(sjPlot)
+library(rmarkdown)
+
+data<-read.spss("03_expenditures.sav")
+View(data)
+summary(data)
+attributes(data)
+head(data)
+sapply(data,is.na)
+data$AID
+data$URB
+describe(data)
+is.data.frame(data)
+data<-as.data.frame(data)
+attributes(data)
+summary(data)
+str(data)
+levels(data$Place)
+levels(data$Place)<-c("Ανατολικά","Βόρεια","Νότια","Δυτικά")
+head(data)
+DEN1<-round(data$DEN*1000,2)
+DEN1
+data$DEN1<-DEN1
+head(data)
+data$urbcut<-cut(data$URB,breaks=seq(0,100,20),include.lowest = T)
+tab2<-table(urbcut)
+tab2
+head(data)
+data$urbcut<-urbcut
+
+###Epikratousa timi gia Urb
+tab2<-round(prop.table(tab2),2)*100
+tab2
+max(tab2)
+###barchart gia URB
+barplot(tab2,col=c(4,6,5,2,"light green"),xlab = c("Ποσοστό αστικοποίησης"),ylim=c(0,38))
+legend(locator(), legend = c("Επικρατούσα Τιμή"), col = 2, lty = 0,box.lty = 0, cex = 0.8)
+
+
+###epikratousa timi gia PLACE
+tab<-prop.table(table(data$Place))*100
+max(tab)
+tab
+
+####Pita gia PLACE
+perc <- round(100*prop.table(table(data$Place)),1)
+perc <- paste( '(', perc, sep='' )
+perc <- paste( perc, '%)', sep='' )
+
+
+
+pie3D(tab,labelcex = 1.4,explode=0.2,labels=paste(levels(data$Place),perc),col=c("grey","grey",2,"grey"),labelcol = 1)
+
+tab3<-rbind(tab,tab2)
+tab3
+###descriptives gia sunexeis
+?sd
+descriptives<-function(x){
+  n<-length(x)
+  mu<-mean(x)
+  variance<-var(x)
+  std<-sd(x)
+  med<-median(x)
+  skewne<-skew(x)
+  kurto<-kurtosi(x)
+  mi<-min(x)
+  ma<-max(x)
+  ra<-ma-mi
+  tr<-mean(x,trim = 0.025)
+  ma1<-mad(x,center=median(x))
+  Q3<-quantile(x,0.75)
+    Q1<-quantile(x,0.25)
+  InterR<-IQR(x)
+    d<-c(mu,variance,std,med,skewne,kurto,tr,mi,ma,ra,ma1,Q3,Q1,InterR)
+  names(d)<-c("Μέση τιμή","Διακύμανση","Τυπική απόκλιση","διάμεσος","Συμμετρία","Κυρτότητα","Περικομμένος Μέσος 5%","Ελάχιστη τιμή","Μέγιστη τιμή","Ευρος","Μέση Απόλυτη Απόκλιση","Τρίτο Τεταρτημόριο","Πρώτο Τεταρτημόριο","Ενδοτεταρτημοριακό εύρος")
+  return(d)
+}
+d1<-round(descriptives(data$EXP),2)
+d1
+describe(data)
+data$EXP
+d2<-round(descriptives(data$AID),2)
+d2
+d3<-round(descriptives(data$POP),2)
+d3
+d4<-round(descriptives(data$DEN1),2)
+d6<-round(descriptives(data$PCINC),2)
+d6
+d7<-round(descriptives(data$PS),2)
+d7
+A<-rbind(d1,d2,d3,d6,d7,d4)
+rownames(A)<-c("Έξοδα πολιτείας","Κρατική βοήθεια","Πληθυσμός","Κατά Κεφαλήν Μέσο Εισόδημα","Αριθμός Παιδιών σε δημόσια σχολεία","πυκνότητα του πληθυσμού")
+View(A)
+B<-as.data.frame(A)
+C<-data.frame()
+?rmarkdown
+render(A,pdf_document)
+###Normality test gia variables
+###elegxos kanonikotitas gia metavlites
+par(mfrow=c(2,4))
+par(cex.main=0.85)
+shapiro.test(data$EXP)
+qqnorm(data$EXP,main="Διάγραμμα Ποσοστημόριων των Εξόδων");qqline(data$EXP,col=2)
+
+shapiro.test(data$POP)
+qqnorm(data$POP,main="Διάγραμμα Ποσοστημόριων του Πληθυσμού");qqline(data$POP,col=2)
+
+shapiro.test(data$URB)
+qqnorm(data$URB,main="Διάγραμμα Ποσοστημόριων της αστικοποίησης");qqline(data$URB,col=2)
+
+
+shapiro.test(data$AID)
+qqnorm(data$AID,main="Διάγραμμα Ποσοστημόριων της Κρατικής βοήθειας");qqline(data$AID,col=2)
+
+shapiro.test(DEN1)
+qqnorm(DEN1,main="Διάγραμμα Ποσοστημόριων της πυκνότητας πληθυσμού");qqline(DEN1,col=2)
+
+shapiro.test(data$PCINC)
+qqnorm(data$PCINC,main="Διάγραμμα Ποσοστημόριων του Κατα-Κεφαλήν εισοδήματος");qqline(data$PCINC,col=2)
+
+shapiro.test(data$PS)
+qqnorm(data$PS,main="Διάγραμμα Ποσοστημόριων των παιδιών που πηγαίνουν σχολείο");qqline(data$PS,col=2)
+
+par(mfrow=c(1,1))
+
+s1<-round(shapiro.test(data$EXP)$p.value,2)
+s2<-round(shapiro.test(data$POP)$p.value,2)
+s3<-round(shapiro.test(data$URB)$p.value,2)
+s4<-round(shapiro.test(data$AID)$p.value,2)
+s5<-round(shapiro.test(DEN1)$p.value,2)
+s6<-round(shapiro.test(data$PCINC)$p.value,2)
+s7<-round(shapiro.test(data$PS)$p.value,2)
+s8<-rep("NAI",7)
+
+A1<-matrix(c(s1,s2,s3,s4,s5,s6,s7,s8),ncol=2)
+rownames(A1)<-c("Έξοδα πολιτείας","Πληθυσμός","Αστικοποίηση","Κρατική βοήθεια","Πυκνότητα","Κατά κεφαλήν εισόδημα","Αριθμός παιδιών που πηγαίνουν σχολείο")
+colnames(A1)<-c("P-value ελέγχου κανονικότητας Shapiro","Απόρριψη H0:τα δεδομένα ακολουθούν κανονική κατανομή")
+A1
+
+###ELEGXOS POP~URB
+anova3<-aov((POP)~urbcut,data=data)
+summary(anova3)
+shapiro.test(anova3$residuals)
+#aporr H0
+kruskal.test(data$POP,urbcut)
+#aporr H0
+pairwise.wilcox.test(data$POP,urbcut,p.adjust.method = "bonferroni")
+###diaferei 0-20 me 20,40 0.20 me 40-60 , 60-80,
+boxplot(data$POP~urbcut,ylim=c(0,15000),medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολήξεων για πληθυσμό σε σχέση με κατηγορία ποσοστού αστικοποίησης",xlab="Κατηγορίες ποσοστού αστικοποίησης",ylab="Πληθυσμός",col.lab="sienna2")
+index1<-locator()
+index1
+abline(h=700.9155,col=2,lty=2)
+
+####Elegxos gia urbcut kai place (2 katigorikes) ###################################xanades to
+
+anova3<-aov(data$URB~data$Place)
+shapiro.test(anova3$residuals)
+#aporr H0
+kruskal.test(data$URB~data$Place)
+#den aporr H0
+boxplot(data$URB~data$Place,medcol=2,col="springgreen3",boxcol="light green",main="Διαγράμματα πλαισίων απολήξεων για ποσοστό αστικοποίησης σε σχέση με Γεωγραφική περιοχή",xlab="Γεωγραφική περιοχή",ylab="Ποσοστό Αστικοποίησης",col.lab="sienna2")
+mycol1<-1:length(levels(urbcut))
+
+barplot((round(prop.table(tab1,2),2)),col=mycol1,las=2,beside=T,legend=TRUE,args.legend=list(x='topleft', ncol=3, bty='n'),ylim=c(0,0.6))
+###περιπου οι μισες πολιτειες που ειναι στα ανατολικα εχουν ποσοστο αστικοποιησης 80-100 ,
+
+###Elegxos gia pop kai PLACE (sinexi me katigoriki)
+anova2<-aov(POP~Place,data=data)
+
+shapiro.test(anova2$residuals)
+###aporr h kanonikotita
+qqnorm(anova2$residuals);qqline(anova2$residuals,col=2)
+
+kruskal.test(data$POP~data$Place)
+###isa isa p aporriptetai
+pairwise.wilcox.test(data$POP,data$Place,p.adjust.method = "bonferroni")
+###to west me to south exoun statistika simantiki diafora
+
+boxplot(POP~Place,data=data,medcol=2,col="springgreen3",boxcol="light green",ylim=c(0,18000),main="Διαγράμματα πλαισίων απολήξεων για πληθυσμό σε σχέση με γεωγραφική περιοχή",xlab="Γεωγραφική περιοχή",ylab="Πληθυσμός",col.lab="sienna2")
+index1<-locator()
+abline(h=2181.3,col=2,lty=3)
+index1<-locator()
+
+####elegxos gia Place kai AID
+data$AID
+anova3<-aov(AID~Place,data=data)
+summary(anova3)
+shapiro.test(anova3$residuals)
+#aporr H0
+kruskal.test(data$AID,data$Place)
+##den aporr H0
+boxplot(data$AID~data$Place,medcol=2,col="springgreen3",boxcol="light green",xlab='Γεωγραφική περιοχή',ylab='κρατική βοήθεια που δίνεται στη πολιτεία',main="Διαγράμματα πλαισίων απολήξεων για κρατική βοήθεια που δίνεται στη πολιτεία σε σχέση με γεωγραφική περιοχή",col.lab="sienna2")
+colours()
+####elegxos gia Place kai DEn
+anova4<-aov((DEN1)~Place,data=data)
+summary(anova4)
+shapiro.test(anova4$residuals)
+##aporr h kanonikotita
+kruskal.test(DEN1,data$Place)
+#aporr H0
+pairwise.wilcox.test(DEN1,data$Place,p.adjust.method = 'bonferroni')
+##diaferei east me west kai south me west
+boxplot(DEN1~data$Place,col="springgreen3",boxcol="light green",medcol=2,horizontal = T,main="Διαγράμματα πλαισίων απολήξεων για αριθμό ατόμων ανα τετραγωνικό μίλι σε σχέση με γεωγραφική περιοχή",xlab="Άτομα ανά τετραγωνικό μίλι",ylab='Γεωγραφική περιοχή',col.lab="sienna2")
+index3<-locator()
+index3
+abline(v=23.81962,col=2,lty=2)
+
+#####PCINC me PLACE #######xanades to#########################
+INC1<-log(data$PCINC)
+anova5<-aov(data$PCINC~Place,data=data)
+shapiro.test(anova5$residuals)
+#den aporr H0
+
+leveneTest(anova5)
+#den aporr omoskedastikotita
+aov2<-oneway.test(PCINC~Place,data=data,var.equal=T)
+aov2
+# aporr H0
+
+a6<-PostHocTest(anova5, method="bonferroni")
+a6
+plot(a6,xlab="Γεωγραφική Περιοχή",ylab='Κατά Κεφαλήν εισόδημα',col.lab=2,main="Διάγραμμα διορθωμένων με μέθοδο bonferroni διαστήμματα εμπιστοσύνης για Κατά κεφαλήν εισόδημα σε σχέση με γεωγραφική περιοχή")
+##notia anatolika statistika simantiki diafora
+
+####PS me Place
+anova6<-aov((PS)~Place,data=data)
+shapiro.test(anova6$residuals)
+##aporr H0
+
+kruskal.test(PS~Place,data=data)
+###den aporr H0
+
+boxplot(data$PS~data$Place,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολήξεων για αριθμό παιδιών σε δημόσια σχολεία σε σχέση με γεωγραφική περιοχή",xlab="Γεωγραφική Περιοχή",ylab='αριθμός παιδιών σε δημόσια σχολεία',col.lab="sienna2")
+par(cex.main=0.7)
+
+
+####EXP kai Place
+anova7<-aov(data$EXP~data$Place)
+anova7
+summary(anova7)
+shapiro.test(anova7$residuals)
+qqnorm(anova7$residuals);qqline(anova7$residuals)
+##aporr H0
+kruskal.test(data$EXP,data$Place)
+library(DescTools)
+LeveneTest(anova7)
+ks.test(anova7$residuals,pnorm)
+LillieTest(anova7$residuals)
+lillie.test(anova7$residuals)
+###den aporr H0
+boxplot(data$EXP~data$Place,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολίξεων για συνολικά έξοδα της πολιτείας σε σχέση με γεωγραφική περιοχή",ylab="συνολικά έξοδα της πολιτείας",xlab='Γεωγραφική περιοχή',col.lab='sienna2',ylim=c(0,15000))
+
+
+####EXP kai Urb
+anova8<-aov(data$EXP~urbcut)
+shapiro.test(anova8$residuals)
+##apor H0
+kruskal.test(data$EXP,urbcut)
+##aporr H0
+pairwise.wilcox.test(data$EXP,urbcut,p.adjust.method = 'bonferroni')
+###0-20 me 40-60 ,60-80,80-100. 20-40 me 60-80
+boxplot(data$EXP~urbcut,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολίξεων για συνολικά έξοδα της πολιτείας σε σχέση με κατηγορία αστικοποίησης",ylab="συνολικά έξοδα της πολιτείας",xlab='κατηγορία αστικοποίησης',col.lab='sienna2',ylim=c(0,15000))
+index=locator()
+index
+abline(h=607.3316,col=2,lty=2)
+abline(h=2034,col='purple',lty=2)
+
+
+###AID urb
+anova1<-aov(data$AID~urbcut)
+shapiro.test(anova1$residuals)
+#apoorr H0
+kruskal.test(data$AID,urbcut)
+##aporr H0
+pairwise.wilcox.test(data$AID,urbcut,p.adjust.method = 'bonferroni')
+###0-20 me 40-60 60-80
+boxplot(data$AID~urbcut,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολίξεων για κρατική βοήθεια που δίνεται στη πολιτεία σε σχέση με κατηγορία αστικοποίησης",ylab="κρατική βοήθεια που δίνεται στη πολιτεία",xlab='κατηγορία αστικοποίησης',col.lab='sienna2',ylim=c(0,3000))
+
+#DEN urb
+anova2<-aov(DEN1~urbcut)
+shapiro.test(anova2$residuals)
+###aporr H0
+
+kruskal.test(DEN1,urbcut)
+###aporr H0
+pairwise.wilcox.test(DEN1,urbcut,p.adjust.method = 'bonferroni')
+###0-20 me 60-80 kai 80-100 20-40 me 80-100, 40-60 me 80-100
+boxplot(DEN1~urbcut,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολίξεων για άτομα ανα τετραγωνικό μίλι σε σχέση με κατηγορία αστικοποίησης",ylab="άτομα ανα τετραγωνικό μίλι",xlab='κατηγορία αστικοποίησης',col.lab='sienna2',ylim=c(0,1050))
+
+
+###PCinC
+anova3<-aov(data$PCINC~urbcut)
+shapiro.test(anova3$residuals)
+###den aporr H0
+leveneTest(anova3)
+##den aporr omoskedastikotita
+aov2<-oneway.test(data$PCINC~urbcut,var.equal = T)
+aov2
+####aporr H0
+pairwise.t.test(data$PCINC,urbcut,p.adjust.method = 'bonferroni')
+###0-20  80-100, 20-40 me 60-80 kai 80-100 , 40-60 me 80-100 kai 60-80 me 80-100
+
+a2<-PostHocTest(anova3,method='bonferroni')
+plot(a2,col='purple')
+
+###PS me urb
+anova4<-aov(data$PS~urbcut)
+shapiro.test(anova4$residuals)
+##aporr H0
+
+kruskal.test(data$PS,urbcut)
+###aporr H0
+
+pairwise.wilcox.test(data$PS,urbcut,p.adjust.method = 'bonferroni')
+###0-20 me 40-60 kai 60-80
+boxplot(data$PS~urbcut,medcol=2,boxcol="light green",col="springgreen3",main="Διαγράμματα πλαισίων απολίξεων για Αριθμός παιδιών που σπουδάζουν σε δημόσια σχολεία σε σχέση με κατηγορία αστικοποίησης",ylab="Αριθμός παιδιών που σπουδάζουν σε δημόσια σχολεία",xlab='κατηγορία αστικοποίησης',col.lab='sienna2',ylim=c(0,4550))
+
+##exp me aid
+plot(data$EXP,data$AID,pch=16,col='violetred3')
+cor(data$EXP,data$AID)
+#0.98 corelation
+
+##EXp me Pop
+plot(data$EXP,data$POP,pch=16,col='violetred3')
+cor(data$EXP,data$POP)
+
+#exp me den
+plot(DEN1,data$EXP,pch=16,col='violetred3')
+cor(DEN1,data$EXP)
+##as8enis sxesh
+
+#Exp me PCinc
+plot(data$EXP,data$PCINC,pch=16,col='violetred3')
+cor(data$EXP,data$PCINC)
+###as8enis sxesi
+
+#EXP me PS
+plot(data$EXP,data$PS,pch=16,col='violetred3')
+cor(data$EXP,data$PS)
+
+
+#Aid me pop
+plot(data$AID,data$POP,pch=16,col='violetred3')
+cor(data$AID,data$POP)
+
+#Aid me DEN
+plot(data$AID,DEN1,pch=16,col='violetred3')
+cor(data$AID,DEN1)
+#as8enis sxesi
+
+#AID me PCINC
+plot(data$AID,data$PCINC,pch=16,col='violetred3')
+cor(data$AID,data$PCINC)
+#as8enis
+
+#AID me PS
+plot(data$AID,data$PS,pch=16,col='violetred3')
+cor(data$AID,data$PS)
+
+
+#POP me DEN
+plot(data$POP,DEN1,pch=16,col='violetred3')
+cor(data$POP,DEN1)
+#as8enis
+
+
+#POP me PCINC
+plot(data$POP,data$PCINC,pch=16,col='violetred3')
+cor(data$POP,data$PCINC)
+#as8enis
+
+
+#POP me PS
+plot(data$POP,data$PS,pch=16,col='violetred3')
+cor(data$POP,data$PS)
+
+
+#DEN1 me PCINC
+plot(DEN1,data$PCINC,pch=16,col='violetred3')
+cor(DEN1,data$PCINC)
+#as8enis
+
+#DEN me PS
+plot(DEN1,data$PS,pch=16,col='violetred3')
+cor(DEN1,data$PS)
+#as8enis
+
+#PCINC me PS
+plot(data$PCINC,data$PS,pch=16,col='violetred3',ylab="Αριθμός παιδιών που πηγαίνουν σχολείο",xlab="Κατά Κεφαλήν εισόδημα")
+abline(lm(PCINC~PS,data=data),col=2)
+cor(data$PCINC,data$PS)
+#as8enis
+data1<-data.frame(Έξοδα_πολιτείας=data$EXP,Πληθυσμός=data$POP,Κρατική_βοήθεια=data$AID,Πυκνότητα=data$DEN1,Κατά_κεφαλήν_εισόδημα=data$PCINC,Αριθμός_παιδιών_σε_σχολείο=data$PS,Ποσοστο_Παιδιών_σε_σχολεία_προς_Πληθυσμο=PS2)
+library(PerformanceAnalytics)
+chart.Correlation(data1,histogram=T,pch=16,cex.labels=1.5,col='steelblue2')
+chart.Correlation(data1,histogram=T,method='kendall')
+cor.test(data$EXP,data$POP,method="kendall")
+cor.test(data$EXP,data$AID,method='kendall')
+
+chart.Correlation(data1,histogram=T,method='spearman')
+
+
+AID1<-data$AID-mean(data$AID)4
+PCINC1<-data$PCINC-mean(data$PCINC)
+POP1<-data$POP-mean(data$POP)
+PS1<-data$PS-mean(data$PS)
+mnull<-lm(EXP~1,data=data)
+data5<-data
+View(data5)
+dim(data5)
+data5<-data
+data5<-data5[,c(1,2,3,4,7,8,9,10)]
+data5$PS2<-PS2
+PS2
+mfull2<-lm(EXP~.,data=data5)
+summary(mfull2)
+shapiro.test(rstandard(mfull2))
+LillieTest(rstandard(mfull2))
+dwt(mfull2,method='normal')
+vif(mfull2)
+cd<-round(ols_eigen_cindex(mfull2),2)
+cd
+
+ts.plot(rstandard(mfull2))
+var.test(rstandard(mfull2),x)
+mfull2<-lm(EXP~Place+AID+PS+DEN1+urbcut,data=data5)
+plot(mfull2)
+View(data)
+summary(mfull2)
+summary(mnull)
+model1<-step(mnull,scope=list(lower=mnull,upper=mfull2),direction='both',k=log(nrow(data5)))
+model1
+summary(model1)
+modeladj1<-lm(EXP~Place+AID1+PCINC1+POP1+PS1,data=data)
+modeladj2<-lm(EXP~Place+AID1+POP1+PS1,data=data)
+summary(modeladj1)
+plot(modeladj1,which=6)
+plot(modeladj1,which=4)
+plot(modeladj1)
+
+shapiro.test(rstandard(modeladj1))
+###den aporr H0 ara einai kanonika ta kataloipa
+
+###omoskedastikotita provlima
+plot(modeladj1$fitted.values,rstandard(modeladj1))
+abline(h=-1.96,col=2,lwd=2,lty=2)
+abline(h=1.96,col=2,lwd=2,lty=2)
+plot(modeladj1,which=3)
+
+###
+dwt(modeladj1,method='normal')
+###den aporr H0 ara den exw provlima autosusxetisis
+
+vif(modeladj1)
+cd<-ols_eigen_cindex(modeladj1)
+cd>30
+cd>0.5
+cd
+9.929303e-01>9.763801e-01
+ma2<-lm(EXP~Place+AID1+PCINC1+PS1,data=data)
+summary(ma2)
+
+
+shapiro.test(rstandard(ma2))
+###den aporr H0 ara einai kanonika ta kataloipa
+
+###omoskedastikotita oxi provlima
+x<-cut(data$EXP,breaks=quantile(data$EXP),include.lowest = T)
+x<-table(cut(data$EXP,breaks=quantile(data$EXP),include.lowest = T))
+var.test(rstandard(ma2),x)
+vif(mfull2)
+
+plot(ma2$fitted.values,rstandard(ma2))
+abline(h=-1.96,col=2,lwd=2,lty=2)
+abline(h=1.96,col=2,lwd=2,lty=2)
+plot(ma2,which=6)
+###
+dwt(ma2,method='normal')
+#den exw provlima autosusxetisis
+vif(ma2)
+##den exw polusugrammikotita
+shapiro.test(ma2$residuals)
+
+summary(ma2)
+#anamenomh timh tou EXP stin katigoria anatolika otan oles oi posostikes einai ises me to meso tous einai isi me 3551
+#anamenomenh metavoli tou EXP otan AID auxi8ei kata mia monada einai iso me 4.55
+##anamenomeni metavoli tou EXP otan PCINC auxi8ei kata mia monada einai isi me 0.51
+#anamenomeni metavoli tou EXP otan PS1 auxi8ei kata mia monada einai isi me 0.4
+#anamenomeni metavoli tou EXP stin anatoliki otan to place einai boreia einai 118,antistoixa -563 kai -320
+
+###exoume leverage provlima
+model2<-lm(EXP~Place+AID1+PCINC1+PS1+AID1:Place,data=data)
+model3<-lm(EXP~Place+AID1+PCINC1+PS1+PCINC1:Place,data=data)
+model4<-lm(EXP~Place+AID1+PCINC1+PS1+PS1:Place,data=data)
+shapiro.test(rstandard(model2))
+summary(model2)
+summary(model3) #oxi stat simantiki h allhlepidrasi
+summary(model4)
+model5<-lm((EXP)~Place+AID1*+PCINC1+PS1+AID1*Place+PCINC1*Place,data=data)
+summary(model5)
+
+######
+PS2<-round((data$PS/data$POP)*100,1)
+PS2
+View(data)
+
+data2<-cbind(data$AID,data$PCINC,PS2,data$URB)
+View(data2)
+colnames(data2)<-c("AID","PCINC","PS2","URB")
+colnames(data2)
+data2[,1]<-log(data2[,1])
+chart.Correlation(data2)
+
+
+mnull<-lm(log(AID)~1,data=data)
+mf2<-lm(log(AID)~Place+urbcut+PS2+PCINC,data=data)
+mfull3<-lm(log(AID)~Place+URB*PS2+URB*PCINC,data=data)
+ma6<-step(mf2,direction='backward')
+summary(ma6)
+model7<-lm(log(AID)~urbcut*PS2,data=data)
+
+dwt(ma6)
+
+x1<-cut(log(data$AID),breaks=quantile(log(data$AID)),include.lowest = T)
+x1<-table(cut(log(data$AID),breaks=quantile(log(data$AID)),include.lowest = T))
+var.test(rstandard(ma6),x1)
+
+##exoume kanonikotita omoskedastikotita kai den exoume autosusxestisi
+
+vif(ma6)
+plot(ma6)
+
+summary(ma6)
+
+PS2<-PS2-mean(PS2)
+
+###
+###
+matel<-lm(log(AID)~urbcut+PS2,data=data)
+summary(matel)
+shapiro.test(matel$residuals)
+shapiro.test(rstandard(matel))
+dwt(matel)
+var.test(rstandard(matel),x1)
+vif(matel)
+par(mfrow=c(2,3))
+plot(matel,which=1,pch=16,col='steelblue2')
+plot(matel,which=2,pch=16,col='steelblue2')
+plot(matel,which=3,pch=16,col='steelblue2')
+plot(matel,which=4,pch=16,col='steelblue2')
+plot(matel,which=5,pch=16,col='steelblue2')
+plot(matel,which=6,pch=16,col='steelblue2')
+
+summary(matel)
+colours()
+###
+##h anamenomenh timh tou log(AID) otan oles oi epexigimatikes einai ises me ton meso tous einai isi me 6.08
+###dld h anamenomenh timh tou AID einai 437.02
+exp(6.08)
+###gia monadiaia auxisi tou URB to log(AID)auxanetai kata 0.021
+#dld to aid gia 2%
+###monadiaia auxisi tou posostou paidiwn ana plh8ismo 14% ligotera AID
+1-exp(0.021)
+1-exp(-0.16)
+1-exp(-0.0003)
+
+residualPlots(matel,pch=16,col='steelblue2')
+residualPlots(ma2,pch=16,col='steelblue2')
+summary(ma2)
+vif(ma2)
+ma3<-lm(EXP~Place+PCINC1+PS1+I(AID1^2),data=data)
+summary(ma3)
+shapiro.test(rstandard(ma3))
+dwt(ma3)
+var.test(rstandard(ma3),x)
+vif(ma3)
+cd2<-ols_eigen_cindex(ma3)
+cd2
+cd2>15
+cd2>15
+cd2>0.5
+max(cd2[8,c(3:10)])
+cd2==0.9964526
+cd2[8,8]
+library(PerformanceAnalytics)
+chart.Correlation(data$URB,data$EXP,data$AID,data$PS,data$PCINC,data$POP)
+p2<-data.frame(URB=data$URB,EXP=data$EXP,AID=data$AID,PS=data$PS,PCINC=data$PCINC,POP=data$POP)
+chart.Correlation(p2)
+anova8<-aov(PS2~Place,data=data)
+summary(anova8)
+shapiro.test(anova8$residuals)
+##kanonikotita ok
+leveneTest(anova8)
+###omoskedastikotita ok
+aov3<-oneway.test(PS2~Place,data=data,var.equal = T)
+aov3
+pairwise.t.test(PS2,data$Place,p.adjust.method = 'bonferroni')
+##anatolika dutika boreia dutika notia dutika
+
+anova9<-aov(PS2~urbcut,data=data)
+shapiro.test(anova9$residuals)
+##kanonika
+leveneTest(anova9)
+##omoskedast ok
+aov4<-oneway.test(PS2~urbcut,data=data,var.equal = T)
+aov4
+###aporr H0
+pairwise.t.test(PS2,urbcut,p.adjust.method = 'bonferroni')
+##[0,20] με (80,100]
+
+qqnorm(PS2);qqline(PS2,col=2)
+shapiro.test(PS2)
+(round(descriptives(PS2),2))
+PS2
+PS
+data$PS
+PS2<-round((data$PS/data$POP)*100,1)
+PS2
+
+modeladj2<-lm(EXP~Place+AID1+POP1+PS1,data=data)
+AID1<-data$AID-mean(data$AID)
+PCINC1<-data$PCINC-mean(data$PCINC)
+POP1<-data$POP-mean(data$POP)
+PS1<-data$PS-mean(data$PS)
+summary(modeladj2)
+shapiro.test(rstandard(modeladj2))
+###den exw kanonikotita
+dwt(modeladj2,method='normal')
+###exw autocorrelation
+var.test(rstandard(modeladj2),x)
+###exw omosekdastikotita
+vif(modeladj2)
+cd<-round(ols_eigen_cindex(modeladj2),2)
+cd
+#bgazw POP1
+model2a<-lm(EXP~Place+AID1+PS1,data=data)
+summary(model2a)
+shapiro.test(rstandard(model2a))
+dwt(model2a)
+var.test(rstandard(modeladj2),x)
+vif(model2a)
+model2a<-lm(log(EXP)~Place+AID1+PS1,data=data)
+summary(model2a)
+shapiro.test(rstandard(model2a))
+par(mfrow=c(2,3))
+plot(model2a,which=1)
+plot(model2a,which=2)
+plot(model2a,which=3)
+plot(model2a,which=4)
+plot(model2a,which=5)
+plot(model2a,which=6)
+data5<-data5[,1:7]
+data5$PCINC<-data$PCINC
+data$PS2<-PS2
+mnull<-lm(EXP~1,data=data5)
+mfull2<-lm(EXP~.,data=data5)
+summary(mfull2)
+model1<-step(mnull,scope=list(lower=mnull,upper=mfull2),direction='both',k=log(nrow(data5)))
+summary(model1)
+shapiro.test(rstandard(model1))
+##kanonikotita ok
+dwt(model1)
+##autocor ok
+var.test(rstandard(model1),x)
+##omosked ok
+vif(model1)
+cd<-round(ols_eigen_cindex(model1),2)
+cd
+#bgazw PCINC
+mod2a<-lm(EXP~Place+AID1+PCINC1+POP1,data=data5)
+summary(mod2a)
+shapiro.test(rstandard(mod2a))
+dwt(mod2a)
+var.test(rstandard(mod2a),x)
+vif(mod2a)
+cd<-(ols_eigen_cindex(mod2a))
+cd
+summary(mod2a)
+BIC(mod2a)
+AIC(mod2a)
+model1<-step(mnull,scope=list(lower=mnull,upper=mfull2),direction='both')
+summary(model1)
+shapiro.test(rstandard(model1))
+dwt(model1)
+var.test(rstandard(model1),x)
+##omosked ok
+vif(model1)
+cd<-round(ols_eigen_cindex(model1),2)
+cd
+par(mfrow=c(2,3))
+plot(mod2a,which=1);pplot(model1,which=1);plot(mod2a,which=2);plot(mod2a,which=3);plot(mod2a,which=4);plot(mod2a,which=5);plot(mod2a,which=6)
+plot(mod2a,which=2);plot(mod2a,which=3);plot(mod2a,which=4);plot(mod2a,which=5);plot(mod2a,which=6)
+residualPlots(model1)
+summary(mod2a)
+model1<-lm(EXP~Place+PCINC1+POP1,data=data5)
+
+rows1 <- sample(nrow(data5))
+data6<-data5[rows1,]
+View(data6)
+
+
+
+mnull<-lm(log(AID)~1,data=data6)
+mf2<-lm(log(AID)~Place+urbcut+PS2+PCINC,data=data6)
+ma6<-step(mf2,direction='both',k=log(nrow(data6)))
+ma7<-step(mf2,direction='both')
+BIC(ma6)
+BIC(ma7)
+AIC(ma6)
+AIC(ma7)
+summary(mf2)
+shapiro.test(rstandard(mf2))
+dwt(mf2)
+
+var.test(rstandard(mf2),x2)
+x2<-cut(ma6$fit,breaks=quantile(ma6$fitted.values),include.lowest = T)
+x2<-table(cut(ma6$fitted.values,breaks=quantile(ma6$fitted.values),include.lowest = T))
+vif(mf2)
+residualPlots(mf2)
+BIC(mf2)
+ma3<-lm(log(AID)~Place+urbcut+PS2,data=data6)
+BIC(ma3)
+summary(ma6)
+summary(ma7)
+
+ma8<-step(mnull,direction='forward',k=log(nrow(data6)))
+summary(ma8)
+
+BIC(ma8)
+AIC(ma8)
+shapiro.test(rstandard(mf2))
+summary(mf2)
+0.8389^2
+0.7943^2
+shapiro.test(rstandard(ma6))
+shapiro.test(rstandard(ma7))
+dwt(ma6)
+dwt(ma7)
+
+x2<-cut(ma6$fit,breaks=quantile(ma6$fitted.values),include.lowest = T)
+x2<-table(cut(ma6$fitted.values,breaks=quantile(ma6$fitted.values),include.lowest = T))
+var.test(rstandard(mf2),x2)
+x2<-cut(ma7$fit,breaks=quantile(ma7$fitted.values),include.lowest = T)
+x2<-table(cut(ma7$fitted.values,breaks=quantile(ma7$fitted.values),include.lowest = T))
+vif(ma6)
+vif(ma7)
+cor(log(data6$AID),data6$PS2)
+residualPlots(ma6)
+residualPlots(ma7)
+plot(ma6,which=1:6)
+plot(ma7,which=1:6)
