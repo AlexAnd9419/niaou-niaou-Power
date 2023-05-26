@@ -11,3 +11,4 @@ print("Bibi buy me everything on the list. Thank you.")
 for shopping_item in shopping_list:
     print(f"BiBi buy me {shopping_item}")
 
+print("lesson 2")
